@@ -362,6 +362,278 @@ claude-code-workflow-framework/
     └── IMPLEMENTATION-GUIDE.md
 ```
 
+## Replicating the Daily Note System
+
+The daily note system is the documentation backbone — every work session gets logged, entries are consistent, and nothing falls through the cracks. Here's how to replicate it.
+
+### The Folder Structure
+
+Notes live in a hierarchical time-based structure:
+
+```
+vault/
+├── 2026/
+│   ├── Q1/
+│   │   ├── [W]01/
+│   │   │   ├── 01-01-2026.md      ← daily note
+│   │   │   ├── 01-02-2026.md
+│   │   │   └── 2026-W01.md        ← weekly summary (auto-generated)
+│   │   ├── [W]02/
+│   │   │   └── ...
+│   │   └── ...
+│   ├── 2026-Q1.md                  ← quarterly summary (auto-generated)
+│   └── 2026-Annual.md              ← annual summary (auto-generated)
+```
+
+**Why `[W]##` brackets?** Visually distinct, sorts correctly. Tradeoff: Glob tools break on brackets — always use `find` instead.
+
+**ISO week year boundary:** Dec 31 can be in Week 1 of the *next* year. The automation script uses `%G` (ISO week year) so these notes land in the correct folder.
+
+### The Daily Note Template
+
+Each note has 12 sections. The automation script creates them at midnight:
+
+```markdown
+---
+author: Your Name
+Last Modified: MM-DD-YYYY | HH:MM AM/PM
+tags:
+  - daily_notes
+---
+
+<< [[prev-date]] | Today | [[next-date]] >> | Week: [[YYYY-W##]]
+
+# MM-DD-YYYY | DayName
+
+## Agenda & Tasks
+### Top Priority
+### Secondary Priority        ← rolled over from yesterday's Top
+### Tertiary Priority          ← rolled over from yesterday's Secondary
+### Other Tasks                ← everything else, with stale tags
+
+## Journal
+### Morning Thoughts
+### Evening Reflection
+
+## Notes                       ← WHERE CLAUDE WRITES ENTRIES (primary)
+
+## Meetings
+
+## Ideas & Insights            ← quick ideas via /jot-idea
+
+## Questions & Decisions
+
+## Links & Resources
+
+## Tomorrow's Prep
+```
+
+### Task Rollover (Automatic Priority Demotion)
+
+The automation script demotes incomplete tasks one tier per day of gap:
+
+```
+Day 0 (yesterday):        Day 1 (today, 1-day gap):
+  Top:    [A, B]            Top:    [] (fresh — you set new priorities)
+  Secondary: [C]            Secondary: [A, B] (from Top)
+  Tertiary:  [D]            Tertiary:  [C] (from Secondary)
+  Other:     [E]            Other:     [E, D] (Other stays + Tertiary added)
+```
+
+If you skip 3 days, tasks demote 3 levels — everything cascades to Other. Tasks in Other get age tags:
+
+| Age | Tag | Meaning |
+|-----|-----|---------|
+| 14+ days | `#stale` | Starting to age |
+| 30+ days | `#stale_30d` | Needs attention |
+| 60+ days | `#stale_60d` | Consider removing |
+| 90+ days | `#stale_90d` | Likely dead |
+
+Deduplication uses content hashing — the same task never appears twice.
+
+### The Entry Format (How Claude Documents Work)
+
+Every time Claude does work, it prepends an entry to the `## Notes` section. Entries follow a consistent format with three depth levels:
+
+**Minimal** (quick fixes):
+```markdown
+- **02:15 PM** - **Docker Port Fix** #infrastructure #docker
+
+  **Configuration Update**: Fixed nginx port mapping in docker-compose
+
+  **Files Modified**:
+  - 🔧 'docker-compose.yml' - Fixed port binding
+
+  **Strategic Value**: Resolves local dev access issues.
+
+---
+```
+
+**Standard** (most work):
+```markdown
+- **03:30 PM** - **Feature Implementation** #personal #k_town
+
+  **Implementation Work**: Added character selection UI
+
+  **Tasks Completed**:
+  - ✅ Created character grid component
+  - ✅ Wired selection state to game store
+  - ✅ Added keyboard navigation
+
+  **Files Modified**:
+  - 📝 [[CharacterSelect]] - New component
+  - 🔧 'src/stores/gameStore.ts' - Added selection state
+
+  **Key Decisions**:
+  - 💡 Grid layout scales better than carousel for 10+ characters
+
+  **Deliverable Created**: [[CharacterSelect]] - Character selection UI component
+
+  **Strategic Value**: Core UX feature for game demo.
+
+---
+```
+
+**Extended** (complex multi-step work):
+```markdown
+- **11:20 AM** - **Research Orchestration** #research #orchestration
+
+  **Orchestration Work**: Coordinated 3 research agents for security analysis
+
+  **Orchestration Tasks**:
+  - ✅ Loaded agents with environment context
+  - ✅ Set research parameters and constraints
+  - ✅ Reviewed outputs for completeness
+
+  **Agent Activities**:
+  - Research Specialist analyzed 847 alert rules
+  - Identified 23 misconfigured detections
+  - Generated remediation timeline
+
+  **Files Created**:
+  - 📝 [[Security Posture Analysis]] - Research output
+  - 📊 'reports/alert-rules-analysis.csv' - Detailed assessment
+
+  **Key Decisions**:
+  - 💡 Prioritized by MITRE ATT&CK coverage gaps
+  - 🎯 Phased approach: critical (Week 1), medium (Month 1), optimization (Q1)
+
+  **Roadblocks**:
+  - 🚧 Log retention insufficient for forensic requirements
+
+  **Research Findings**:
+  - 23 rules had overly broad scope causing alert fatigue
+  - 5 critical MITRE techniques completely unmonitored
+
+  **Deliverable Created**: [[Security Assessment Report]] - Full analysis with remediation roadmap
+
+  **Strategic Value**: Data-driven security improvements for compliance.
+
+---
+```
+
+### Entry Consistency Rules
+
+These rules produce uniform entries across every session:
+
+1. **Always PREPEND** — newest entries at the top of `## Notes`
+2. **Always timestamp** — `**HH:MM AM/PM**` in 12-hour format
+3. **Always tag** — minimum 2 context tags (#project, #work_type)
+4. **Always separate** — `---` after every entry
+5. **File references** — `[[Brackets]]` for .md files, `'quotes'` for everything else
+6. **Strategic value** — every entry explains *why* the work matters
+7. **Emoji conventions** — 📝 new markdown, ✏️ edited markdown, 🔧 config, 📜 scripts, 💡 insight, 🎯 decision, 🚧 roadblock, ✅ completed
+
+### The Enforcement Stack
+
+Four layers ensure Claude *always* documents work:
+
+```
+Layer 1: CLAUDE.md
+  "MANDATORY: Daily Note Documentation"
+  "ZERO TOLERANCE: Work without documentation is a critical failure"
+       ↓
+Layer 2: Skill (daily-note-management/)
+  7-step protocol: STOP → timestamp → find note → read → prepend → verify → respond
+  Invoked via Skill() tool on every work message
+       ↓
+Layer 3: Hook (skill-forced-eval-hook.sh)
+  Forces Claude to evaluate daily-note-management skill before every response
+  Without this, Claude activates skills only ~20% of the time
+       ↓
+Layer 4: Blocking Hook (daily-note-check.sh)
+  Reads session transcript at Stop event
+  If work tools were used BUT daily-note-management was NOT invoked:
+    → {"decision": "block", "reason": "Must document before stopping"}
+  Claude literally cannot finish without documenting
+```
+
+### How to Set It Up
+
+**Step 1: Create your vault structure**
+```bash
+mkdir -p "vault/$(date '+%Y')/Q$(date '+%m' | awk '{if($1<=3) print 1; else if($1<=6) print 2; else if($1<=9) print 3; else print 4}')/[W]$(date '+%V')"
+```
+
+**Step 2: Install the skill** (tells Claude HOW to document)
+```bash
+mkdir -p .claude/skills/daily-note-management
+cp skills/daily-note-management/* .claude/skills/daily-note-management/
+# Edit SKILL.md: update vault path and find command paths
+```
+
+**Step 3: Install the hook** (forces Claude to USE the skill)
+```bash
+cp hooks/skill-forced-eval-hook.sh .claude/hooks/
+chmod +x .claude/hooks/skill-forced-eval-hook.sh
+# Add to settings.local.json UserPromptSubmit hooks
+```
+
+**Step 4: Install the blocking hook** (prevents Claude from SKIPPING documentation)
+```bash
+cp hooks/daily-note-check.sh .claude/hooks/
+chmod +x .claude/hooks/daily-note-check.sh
+# Add to settings.local.json Stop hooks (requires jq)
+```
+
+**Step 5: Install the automation** (creates notes at midnight)
+```bash
+cp scripts/daily-note-automation-v2.sh ~/.local/bin/
+cp scripts/daily-note-wrapper.sh ~/.local/bin/
+chmod +x ~/.local/bin/daily-note-*.sh
+# Edit VAULT_DIR in the script
+# Install launchd plist (macOS) or crontab entry (Linux)
+```
+
+**Step 6: Customize your tags**
+
+Edit `skills/daily-note-management/entry-format.md` and replace the context tags:
+```markdown
+# Replace these with YOUR projects/clients/contexts:
+- `#your_company` - Work items
+- `#personal` - Personal projects
+- `#project_alpha` - Specific project
+```
+
+### Slash Commands for Daily Notes
+
+| Command | What It Does |
+|---------|-------------|
+| `/daily-note` | Create today's note with task rollover |
+| `/create-daily-notes 5` | Backfill the last 5 days of missing notes |
+| `/read-today` | Load today's note into context |
+| `/catch-up 7` | Summarize last 7 days of notes (1/3/7/14 day options) |
+| `/jot-idea fix the lighting` | Quick-add to Ideas & Insights with auto-category detection |
+
+### What It Looks Like After a Month
+
+After consistent daily use, you get:
+- **Complete work audit trail** — search any date to see exactly what happened
+- **Task archaeology** — stale tags reveal forgotten commitments
+- **Pattern recognition** — `/catch-up 14` surfaces recurring themes
+- **Session recovery** — new Claude sessions can read today's note for context
+- **Hierarchical summaries** — weekly, quarterly, and annual notes auto-aggregate
+
 ## Supersedes
 
 This repo consolidates and supersedes:
