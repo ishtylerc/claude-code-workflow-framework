@@ -1,0 +1,55 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(daily-note-management)",
+      "Skill(task-list-management)",
+      "WebSearch"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/skill-forced-eval-hook.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/file-change-sync-hook.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/health-check-hook.sh",
+            "timeout": 60
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/task-compliance-check.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

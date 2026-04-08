@@ -1,0 +1,35 @@
+{
+  "_comment": "Place at ~/.claude/projects/<project-path-hash>/settings.local.json",
+  "permissions": {
+    "allow": [
+      "Skill(daily-note-management)",
+      "Skill(task-list-management)",
+      "WebSearch"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/absolute/path/to/.claude/hooks/skill-forced-eval-hook.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/absolute/path/to/.claude/hooks/daily-note-check.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

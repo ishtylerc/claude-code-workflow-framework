@@ -1,0 +1,13 @@
+{
+  "_comment": "Place at ~/.claude/settings.json for global Claude Code settings",
+  "statusLine": {
+    "type": "command",
+    "command": "npx -y ccstatusline@latest",
+    "padding": 0
+  },
+  "enabledPlugins": {
+    "playwright@claude-plugins-official": true
+  },
+  "voiceEnabled": false,
+  "skipDangerousModePermissionPrompt": false
+}

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user.daily-note</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/ishtyler/.local/bin/daily-note-wrapper.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>0</integer>
+        <key>Minute</key>
+        <integer>1</integer>
+    </dict>
+
+    <key>StandardInPath</key>
+    <string>/dev/null</string>
+
+    <key>StandardOutPath</key>
+    <string>/Users/ishtyler/.local/share/daily-notes-logs/launchd-stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/ishtyler/.local/share/daily-notes-logs/launchd-stderr.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/ishtyler/.local/bin</string>
+        <key>HOME</key>
+        <string>/Users/ishtyler</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>

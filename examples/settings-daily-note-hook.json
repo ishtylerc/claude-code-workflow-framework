@@ -1,0 +1,21 @@
+{
+  "_comment": "Add this to your .claude/settings.local.json or merge with existing settings",
+  "permissions": {
+    "allow": [
+      "Skill(daily-note-management)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/daily-note-check.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
