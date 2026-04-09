@@ -348,6 +348,14 @@ claude-code-workflow-framework/
 │       ├── describe_pr.md
 │       ├── commit.md
 │       └── create_worktree.md
+├── templates/                      # Blank templates + prepend guide (7)
+│   ├── README.md
+│   ├── daily-note-blank.md
+│   ├── daily-note-populated-example.md
+│   ├── weekly-note-blank.md
+│   ├── quarterly-note-blank.md
+│   ├── annual-note-blank.md
+│   └── PREPEND-WALKTHROUGH.md
 ├── scripts/                        # Automation (2)
 │   ├── daily-note-automation-v2.sh
 │   └── daily-note-wrapper.sh
