@@ -1,6 +1,6 @@
 # Claude Code Workflow Framework
 
-A complete, production-tested workflow framework for Claude Code. 53 files across 7 layers — hooks, rules, skills, agents, commands, automation scripts, and scheduling — that transform Claude Code from a chat assistant into a disciplined project executor with multi-agent orchestration, phased implementation plans, verification gates, progress tracking, session recovery, and enforced documentation.
+A complete, production-tested workflow framework for Claude Code. 54 files across 7 layers — hooks, rules, skills, agents, commands, automation scripts, and scheduling — that transform Claude Code from a chat assistant into a disciplined project executor with multi-agent orchestration, phased implementation plans, verification gates, progress tracking, session recovery, and enforced documentation.
 
 Battle-tested over 6+ months of daily use across security consulting, game development, and personal knowledge management.
 
@@ -51,7 +51,7 @@ Battle-tested over 6+ months of daily use across security consulting, game devel
 │  codebase-locator, codebase-pattern-finder,              │
 │  thoughts-analyzer, thoughts-locator, ultra-research      │
 ├──────────────────────────────────────────────────────────┤
-│                  commands/ (18 commands)                   │
+│                  commands/ (19 commands)                   │
 │  Daily notes: daily-note, create-daily-notes, read-today, │
 │               catch-up, jot-idea                          │
 │  Workflow:    plan.js, research.js, implement.js,         │
@@ -60,6 +60,7 @@ Battle-tested over 6+ months of daily use across security consulting, game devel
 │  Research:    research_codebase_generic                   │
 │  Development: debug, describe_pr, commit, create_worktree │
 │  Implementation: implement_plan                           │
+│  Analysis:    second-opinion (Codex cross-check)          │
 ├──────────────────────────────────────────────────────────┤
 │                    hooks/ (7 scripts)                      │
 │  UserPromptSubmit: skill-forced-eval (full + simple)      │
@@ -251,6 +252,8 @@ See `docs/IMPLEMENTATION-GUIDE.md` for the complete setup including:
 - Blocking documentation compliance
 - Customization guide for your project/vault
 
+For the `/second-opinion` command specifically (OpenAI Codex CLI cross-check with multi-agent scaffolding), see `docs/SECOND-OPINION-SETUP.md` — covers Codex CLI install, `OPENAI_API_KEY`, the required `analyst` profile in `~/.codex/config.toml`, the prompt flow, and troubleshooting.
+
 ## Customization
 
 ### What to Change
@@ -281,7 +284,7 @@ Build on this framework:
 - Domain-specific slash commands in `.claude/commands/`
 - Work context rules in `.claude/rules/work-context/`
 
-## File Inventory (53 files)
+## File Inventory (54 files)
 
 ```
 claude-code-workflow-framework/
@@ -325,12 +328,13 @@ claude-code-workflow-framework/
 │   ├── thoughts-analyzer.md
 │   ├── thoughts-locator.md
 │   └── ultra-research.md
-├── commands/                       # Slash commands (18)
+├── commands/                       # Slash commands (19)
 │   ├── daily-note.md
 │   ├── create-daily-notes.md
 │   ├── read-today.md
 │   ├── catch-up.md
 │   ├── jot-idea.md
+│   ├── second-opinion.md
 │   ├── plan.js
 │   ├── research.js
 │   ├── implement.js
@@ -367,7 +371,8 @@ claude-code-workflow-framework/
 │   ├── settings-global.json
 │   └── settings-daily-note-hook.json
 └── docs/
-    └── IMPLEMENTATION-GUIDE.md
+    ├── IMPLEMENTATION-GUIDE.md
+    └── SECOND-OPINION-SETUP.md    # Codex CLI prerequisites for /second-opinion
 ```
 
 ## Replicating the Daily Note System
