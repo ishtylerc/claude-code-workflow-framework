@@ -1,6 +1,6 @@
 # Claude Code Workflow Framework
 
-A complete, production-tested workflow framework for Claude Code. 54 files across 7 layers — hooks, rules, skills, agents, commands, automation scripts, and scheduling — that transform Claude Code from a chat assistant into a disciplined project executor with multi-agent orchestration, phased implementation plans, verification gates, progress tracking, session recovery, and enforced documentation.
+A complete, production-tested workflow framework for Claude Code. 56 files across 7 layers — hooks, rules, skills, agents, commands, automation scripts, and scheduling — that transform Claude Code from a chat assistant into a disciplined project executor with multi-agent orchestration, phased implementation plans, verification gates, progress tracking, session recovery, and enforced documentation.
 
 Battle-tested over 6+ months of daily use across security consulting, game development, and personal knowledge management.
 
@@ -69,7 +69,7 @@ Battle-tested over 6+ months of daily use across security consulting, game devel
 │                    health-check                           │
 │  Optional:         tts_response_reader.py                 │
 ├──────────────────────────────────────────────────────────┤
-│              scripts/ + scheduling/ (3 files)             │
+│              scripts/ + scheduling/ (5 files)             │
 │  daily-note-automation-v2.sh, wrapper, launchd plist      │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -360,9 +360,11 @@ claude-code-workflow-framework/
 │   ├── quarterly-note-blank.md
 │   ├── annual-note-blank.md
 │   └── PREPEND-WALKTHROUGH.md
-├── scripts/                        # Automation (2)
+├── scripts/                        # Automation (4)
 │   ├── daily-note-automation-v2.sh
-│   └── daily-note-wrapper.sh
+│   ├── daily-note-wrapper.sh
+│   ├── codex-banner.sh             # /second-opinion startup banner (local-only, no network)
+│   └── codex-diagnose.sh           # /second-opinion --diagnose env health (npm + network + model probes)
 ├── scheduling/                     # Cron config (1)
 │   └── com.user.daily-note.plist
 ├── examples/                       # Example configs (4)

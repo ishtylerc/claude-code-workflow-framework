@@ -87,8 +87,16 @@ The command writes to `thoughts/second-opinions/YYYY-MM-DD-<slug>.md` relative t
 ## Usage
 
 ```
-/second-opinion <topic or question> [--files=path1,path2,...] [--cwd=project-path]
+/second-opinion <topic or question> [--files=path1,path2,...] [--cwd=project-path] [--research] [--diagnose]
 ```
+
+Flags:
+
+- `--files=p1,p2`: include the listed files in Codex's Context section (truncated to ~10K chars each).
+- `--cwd=path`: run Codex from the given working directory (likely a git project) instead of the vault root.
+- `--research` *(v1.2.0+)*: opt-in pre-Codex research mode. Claude (not Codex) decomposes the topic into 2-3 internal + 2-3 external research domains (anti-overlap enforced via `excludes:`), runs `research-specialist` sub-agents in parallel, synthesizes a structured Research Brief saved at `thoughts/second-opinions/YYYY-MM-DD-{slug}-brief.md`, then concatenates the brief into Codex's Context section with explicit anti-anchoring framing. Adds ~3-5 min. Default behavior unchanged when omitted.
+- `--diagnose` *(v1.1.0+)*: run environment diagnostics and exit (no Codex invocation, no topic required). Pair with `--quick` to skip slow model probes.
+- `--research` and `--diagnose` are **mutually exclusive** — pick one.
 
 Examples:
 
@@ -98,27 +106,57 @@ Examples:
 /second-opinion Review the tradeoffs in this plan --files=thoughts/plans/2026-04-14-migration.md
 
 /second-opinion Evaluate this auth refactor --cwd=/Users/me/code/my-app --files=src/auth/index.ts,src/auth/middleware.ts
+
+/second-opinion --research What am I missing in this feature idea? --files=design.md
+
+/second-opinion --diagnose
 ```
 
-If no topic is provided the command uses `AskUserQuestion` to collect it.
+If no topic is provided (and not in `--diagnose` mode) the command uses `AskUserQuestion` to collect it.
+
+## Startup Banner (v1.1.0+)
+
+Every non-`--diagnose` invocation prints a one-line banner sourced from `scripts/codex-banner.sh`:
+
+```
+second-opinion: codex 0.130.0 | model gpt-5.5 configured | sandbox read-only | agents 4x depth 1
+```
+
+The banner is **local-only by design** — no network calls. It reads `codex --version` and parses `~/.codex/config.toml`. For full environment checks (npm latest, network reachability, cache writability, model probes) use `--diagnose`.
+
+## Autonomous Ideation Classification (v1.3.0+)
+
+The command classifies the topic shape in Step 1a (always — even in default mode) into one of: `ideation`, `architecture`, `tooling`, `bug`, `strategy`, `code-review`, or other. **The classifier is deliberately biased toward `ideation` when in doubt** — false positives cost ~3 extra meta-questions in Codex's output; false negatives cost premature convergence on a half-formed idea.
+
+Triggers `ideation`:
+- Phrasing: "what am I missing?", "I'm thinking about", "bouncing ideas", "what if we…"
+- Hole-finding language: "scoped right?", "blind spots?", "thinking big enough?"
+- Open-endedness: no specific files in scope, no concrete bug, no decision deadline
+
+When `topic_shape == "ideation"`, Codex's prompt gains an **Ideation Mode lens** (placed BEFORE the existing 4-agent strategy so all agents read it) instructing them to bias toward expansion: surface holes, probe scope, find integration points, invite domain-expert pushback, resist premature convergence.
 
 ## Important Design Rules (do not change without understanding why)
 
 - **Never share Claude's position with Codex.** The whole point of the command is blind independent analysis. Anchoring defeats it.
-- **Always run Codex with `-a never` and a read-only profile.** The CLI is being used as an analyzer, not an actor.
-- **Always log via `daily-note-management` skill** — the command is subject to the repo-wide blocking daily-note hook, so skipping this will fail the Stop gate.
-- **Clean up temp files** after successful runs: `rm -f /tmp/second-opinion-prompt.md /tmp/codex-response.md`.
+- **Run Codex with `-s read-only` (sandbox flag).** As of Codex CLI 0.114+, `-a never` was moved off the `exec` subcommand — use `-s read-only` instead. The `analyst` profile already sets `sandbox_mode = "read-only"`, so the explicit flag is belt-and-suspenders.
+- **The `--research` brief is evidence, not authority.** Codex's prompt includes anti-anchoring framing telling agents to corroborate or challenge brief findings, cross-check HIGH-impact claims at source, and prefer their own analysis when contradictions arise. Do not weaken this framing.
+- **Always log via `daily-note-management` skill** — the command is subject to the repo-wide blocking daily-note hook, so skipping this will fail the Stop gate. (`--diagnose` is exempt — it's operational, not work product.)
+- **Clean up temp files** after successful runs: `rm -f /tmp/second-opinion-prompt.md /tmp/codex-response.md` (and `rm -rf /tmp/second-opinion-research /tmp/second-opinion-decomposition.yaml` when `--research` was used).
 
 ## Troubleshooting
 
 | Symptom | Likely Cause | Fix |
 |---------|--------------|-----|
-| `OPENAI_API_KEY` error | Key not exported in this shell | `export OPENAI_API_KEY=...` and re-run |
-| Codex times out | Large context + high reasoning | Reduce `--files`, pass fewer/smaller files, or lower `model_reasoning_effort` |
+| Auth error | API key not set / not logged in | `export OPENAI_API_KEY=...` or run `codex login` |
+| Codex times out | Large context + high reasoning, or `--research` heavy mode on large repo | Reduce `--files`, drop `--research`, or lower `model_reasoning_effort` in profile |
 | Codex returns empty output | Transient API failure or malformed prompt | Command retries once, then falls back to presenting Claude's position alone |
 | `profile 'analyst' not found` | Missing `[profiles.analyst]` block | Add the profile to `~/.codex/config.toml` (see above) |
 | Multi-agent didn't actually spawn | `multi_agent = false` or feature unsupported in your CLI build | Set `[features] multi_agent = true`, upgrade CLI if needed |
+| `error: unexpected argument '-a' found` | Stale invocation using deprecated `-a never` | Use `-s read-only` instead (post-v1.1.0 commands already do this) |
 | `not a git repository` error on vault root | Codex refuses to run outside a git repo | The command already passes `--skip-git-repo-check` when no `--cwd` is given; make sure you didn't strip that flag |
+| `--research and --diagnose are mutually exclusive` | Both flags passed | Pick one — `--diagnose` for env health, `--research` for pre-Codex research |
+| Banner missing from output | `scripts/codex-banner.sh` not present or not executable | `chmod +x scripts/codex-banner.sh`; banner is non-blocking, will skip silently if missing |
+| Want to know what model is REALLY in use | Configured ≠ accepted (e.g. `gpt-5.5` rejected on stale CLI) | Run `/second-opinion --diagnose` for the full env probe including model acceptance |
 
 ## Related Commands
 
