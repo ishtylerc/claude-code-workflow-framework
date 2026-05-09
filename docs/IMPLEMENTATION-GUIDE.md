@@ -144,6 +144,46 @@ launchctl load ~/Library/LaunchAgents/com.user.daily-note.plist
 # crontab -e → 1 0 * * * ~/.local/bin/daily-note-wrapper.sh
 ```
 
+### Tier 5: Optional — `/second-opinion` Codex cross-check (+10 minutes)
+
+Adds the `/second-opinion` slash command for blind cross-checks against OpenAI's Codex CLI with
+multi-agent scaffolding (Devil's Advocate / Domain Expert / Pragmatist / Synthesis), autonomous
+ideation classification, and an opt-in Claude-side research mode.
+
+**Prerequisites**:
+- OpenAI Codex CLI installed (`codex --version` works) — install: https://developers.openai.com/codex/
+- `OPENAI_API_KEY` set in your shell environment (or you're logged in via `codex login`)
+
+```bash
+# 1. Add the analyst profile to ~/.codex/config.toml (full config block in docs/SECOND-OPINION-SETUP.md §3)
+mkdir -p ~/.codex
+cat >> ~/.codex/config.toml <<'EOF'
+[features]
+multi_agent = true
+
+[agents]
+max_threads = 4
+max_depth = 1
+job_max_runtime_seconds = 300
+
+[profiles.analyst]
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+EOF
+
+# 2. Make the helper scripts executable
+chmod +x scripts/codex-banner.sh scripts/codex-diagnose.sh
+
+# 3. Verify the command is wired up
+.claude/scripts/codex-banner.sh        # one-line banner
+.claude/scripts/codex-diagnose.sh --quick   # env health check (skips slow model probes)
+
+# 4. (Optional) Bump the model in config.toml — the command uses whatever's configured
+# Latest as of v1.3.0: `model = "gpt-5.5"`
+```
+
+**Full setup details, flag reference, and troubleshooting**: see `docs/SECOND-OPINION-SETUP.md`.
+
 ## Customization Checklist
 
 After copying files, update these references:

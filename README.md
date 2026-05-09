@@ -60,7 +60,8 @@ Battle-tested over 6+ months of daily use across security consulting, game devel
 │  Research:    research_codebase_generic                   │
 │  Development: debug, describe_pr, commit, create_worktree │
 │  Implementation: implement_plan                           │
-│  Analysis:    second-opinion (Codex cross-check)          │
+│  Analysis:    second-opinion (Codex cross-check w/ banner,│
+│               --diagnose, --research, ideation auto-detect)│
 ├──────────────────────────────────────────────────────────┤
 │                    hooks/ (7 scripts)                      │
 │  UserPromptSubmit: skill-forced-eval (full + simple)      │
@@ -252,7 +253,12 @@ See `docs/IMPLEMENTATION-GUIDE.md` for the complete setup including:
 - Blocking documentation compliance
 - Customization guide for your project/vault
 
-For the `/second-opinion` command specifically (OpenAI Codex CLI cross-check with multi-agent scaffolding), see `docs/SECOND-OPINION-SETUP.md` — covers Codex CLI install, `OPENAI_API_KEY`, the required `analyst` profile in `~/.codex/config.toml`, the prompt flow, and troubleshooting.
+For the `/second-opinion` command specifically (OpenAI Codex CLI cross-check with multi-agent scaffolding), see `docs/SECOND-OPINION-SETUP.md` — covers Codex CLI install, `OPENAI_API_KEY`, the required `analyst` profile in `~/.codex/config.toml`, the full prompt flow, and troubleshooting. As of v1.3.0 the command also supports:
+
+- **Local-only startup banner** (`scripts/codex-banner.sh`) showing CLI version, configured model, sandbox, and agent settings on every invocation
+- **`--diagnose` flag** (`scripts/codex-diagnose.sh`) for opt-in heavy environment checks — npm latest version, network reachability, config syntax, cache writability, and optional model availability probes
+- **`--research` flag** for opt-in pre-Codex research — Claude (not Codex) decomposes the topic into 2-3 internal + 2-3 external research domains (anti-overlap enforced via `excludes:`), runs `research-specialist` sub-agents in parallel, synthesizes a structured Research Brief saved alongside the comparison doc, then concatenates it into Codex's Context with anti-anchoring framing
+- **Autonomous ideation classification** — Claude classifies every topic in Step 1a (with explicit "lean toward ideation when in doubt" bias) and, when classified as ideation, injects an "Ideation Mode" lens into Codex's prompt before the 4-agent strategy: surface holes, probe scope, find integration points, invite domain-expert pushback, resist premature convergence
 
 ## Customization
 

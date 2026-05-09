@@ -15,7 +15,9 @@ This doc covers everything needed to make the command work.
 
 ### 1. OpenAI Codex CLI
 
-Install the OpenAI Codex CLI and confirm `codex --version` works. The command was authored against `codex-cli 0.114.0`; any version that supports `codex exec`, `-p <profile>`, `-a never`, `--skip-git-repo-check`, and `-o <output-file>` should work.
+Install the OpenAI Codex CLI and confirm `codex --version` works. The command was authored against `codex-cli 0.114.0` and revalidated on `codex-cli 0.130.0`; any version that supports `codex exec`, `-p <profile>`, `-s read-only`, `--skip-git-repo-check`, and `-o <output-file>` should work.
+
+**Note**: as of `codex-cli 0.114.0`, the `-a` (`--ask-for-approval`) flag was moved off the `exec` subcommand; `/second-opinion` v1.1.0+ uses `-s read-only` instead. If you're on an older CLI build that still supports `-a never`, the command will need a one-line edit (`-s read-only` → `-a never`) — but upgrading the CLI is the better path.
 
 Install docs: https://developers.openai.com/codex/
 
@@ -56,7 +58,7 @@ Notes:
 - `multi_agent = true` is what lets the scaffolded "Devil's Advocate / Domain Expert / Pragmatist / Synthesis" agents in the prompt actually spawn as sub-threads instead of being treated as pure prose.
 - `max_threads` caps parallelism; 4 is plenty for the four-persona layout.
 - `job_max_runtime_seconds = 300` lines up with the 5-minute (`300000ms`) Bash timeout the command uses.
-- `sandbox_mode = "read-only"` is paired with `-a never` on the CLI for belt-and-braces safety.
+- `sandbox_mode = "read-only"` is paired with `-s read-only` on the CLI for belt-and-braces safety. (Pre-v1.1.0 the command used `-a never`; that flag was removed from `codex exec` in CLI 0.114.0.)
 
 ### 4. Directory for Output Artifacts
 
@@ -64,25 +66,29 @@ The command writes to `thoughts/second-opinions/YYYY-MM-DD-<slug>.md` relative t
 
 ## How the Command Works
 
-1. **Parse arguments** — topic (free text) plus optional `--files=a,b,c` and `--cwd=path` flags.
-2. **Claude forms its own position** (3–5 bullets) and stores it internally. Not shared with Codex.
-3. **Build context package** — read any `--files`, truncate large files to ~10K chars, assemble a context block.
-4. **Write prompt** to `/tmp/second-opinion-prompt.md` with the multi-agent scaffolding and required output structure.
-5. **Run Codex**:
+1. **Parse arguments** — topic (free text) plus optional `--files=a,b,c`, `--cwd=path`, `--research`, `--diagnose` flags. `--research` and `--diagnose` are mutually exclusive.
+2. **Short-circuit `--diagnose`** *(v1.1.0+)* — if present, run `scripts/codex-diagnose.sh` (heavy env checks: CLI version, npm latest, network, config, cache, optional model probes), print output, exit. Skip everything below.
+3. **Print startup banner** *(v1.1.0+)* — run `scripts/codex-banner.sh` (local-only, no network) and print its one-liner showing the active CLI version, model, sandbox, and agent settings.
+4. **Classify topic shape (Step 1a, v1.3.0+)** — Claude classifies the topic into one of: `ideation`, `architecture`, `tooling`, `bug`, `strategy`, `code-review`, or other. Bias is deliberately toward `ideation` when in doubt — this drives Codex's framing downstream.
+5. **Claude forms its own position** (3–5 bullets, Step 1b) and stores it internally. Not shared with Codex (only the topic shape is shared).
+6. **Build context package** — read any `--files`, truncate large files to ~10K chars, assemble a context block.
+7. **Pre-computed Research Brief (Step 2.5, only if `--research`, v1.2.0+)** — Phase A: scope-aware decomposition into 2-3 internal + 2-3 external research domains with anti-overlap `excludes:` declarations. Phase B: parallel `research-specialist` sub-agents in a single launch. Phase C: synthesize disk-read agent outputs into a Research Brief at `thoughts/second-opinions/YYYY-MM-DD-<slug>-brief.md`.
+8. **Write prompt** to `/tmp/second-opinion-prompt.md` with the multi-agent scaffolding, the Topic Shape annotation, the Ideation Mode lens (only if `topic_shape == "ideation"`), the Research Brief block (only if `--research`), the user-supplied files, and the required output structure.
+9. **Run Codex**:
    ```bash
    # Non-git working directory (vault root):
-   codex exec -p analyst -a never --skip-git-repo-check \
+   codex exec -p analyst -s read-only --skip-git-repo-check \
      -o /tmp/codex-response.md - < /tmp/second-opinion-prompt.md
 
    # Git project directory (via --cwd):
-   cd "$CWD" && codex exec -p analyst -a never \
+   cd "$CWD" && codex exec -p analyst -s read-only \
      -o /tmp/codex-response.md - < /tmp/second-opinion-prompt.md
    ```
    Bash timeout is set to 300000ms (5 min) to accommodate multi-agent orchestration.
-6. **Read Codex response** from `/tmp/codex-response.md`.
-7. **Write comparison artifact** to `thoughts/second-opinions/YYYY-MM-DD-<slug>.md` with frontmatter (date, time, topic, engine, files_analyzed, tags) and sections for Executive Summary, Claude's Position, Codex's Analysis, Comparative Analysis (Agreements / Disagreements / Unique Insights per side), Synthesis & Recommendation, and Confidence & Caveats.
-8. **Log to daily note** via `daily-note-management` skill.
-9. **Present concise summary** in chat with the link to the full artifact.
+10. **Read Codex response** from `/tmp/codex-response.md`.
+11. **Write comparison artifact** to `thoughts/second-opinions/YYYY-MM-DD-<slug>.md` with frontmatter (date, time, topic, engine, files_analyzed, tags, **research_brief** link if `--research` was used) and sections for Executive Summary, Claude's Position, Codex's Analysis, Comparative Analysis (Agreements / Disagreements / Unique Insights per side), Synthesis & Recommendation, and Confidence & Caveats.
+12. **Log to daily note** via `daily-note-management` skill. (`--diagnose` is exempt — it's operational, not work product.)
+13. **Present concise summary** in chat with the link to the full artifact (and the brief, if `--research`).
 
 ## Usage
 
