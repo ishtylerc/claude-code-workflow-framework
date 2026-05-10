@@ -7,7 +7,7 @@ argument-hint: <topic or question> [--files=path1,path2,...] [--cwd=project-path
 <!--
 Command Metadata
 ================
-Version: 1.3.0
+Version: 1.4.0
 Created: 2026-03-10
 Author: Claude Code (guided creation)
 Category: analysis/ai-comparison
@@ -59,6 +59,25 @@ Changelog:
                        with all 4 agents. Decomposition fall-back changed from "architecture"
                        to "ideation" (per same bias). --research mode reuses the Step 1a
                        classification rather than re-classifying.
+  - 1.4.0 (2026-05-10): Tighten Codex multi-agent enforcement so per-agent output is REQUIRED
+                       not roleplay-suggested. Step 3 prompt template now: (a) renames the
+                       section from "Multi-Agent Analysis Strategy" to "Multi-Agent Analysis
+                       (MANDATORY DELINEATED OUTPUT)", (b) instructs Codex that synthesis-only
+                       responses are NON-COMPLIANT, (c) requires the Required Output Structure
+                       to begin with explicit `## Devil's Advocate Agent`, `## Domain Expert
+                       Agent`, `## Pragmatist Agent` sections BEFORE the synthesis sections,
+                       each with verdict + key points + concrete-evidence-cited findings, (d)
+                       adds a "Multi-Agent Compliance Check" subsection at the end where Codex
+                       self-attests each agent contributed at least one unique finding the
+                       others didn't surface (and lists which). Driven by user observation that
+                       v1.0-1.3 prompts achieved variable per-agent delineation in practice
+                       even though the scaffolding text was correct. Behavioral side: this update
+                       also re-anchors that orchestrators MUST invoke /second-opinion via
+                       `Skill(second-opinion)` (not direct `codex exec` Bash heredoc shortcuts)
+                       so Step 1a topic-shape classification, Step 2.5 --research brief, Step 6
+                       structured comparison doc, and Step 7 daily-note logging all happen as
+                       designed. The Skill-bypass shortcut is now an explicit anti-pattern in
+                       Step 0.4 below.
 -->
 
 ## Context
@@ -88,6 +107,33 @@ Extract from `$ARGUMENTS`:
 
 **Mutual exclusion**: If BOTH `--research` AND `--diagnose` are present, error immediately:
 `/second-opinion: --research and --diagnose are mutually exclusive — pick one`. Do not proceed.
+
+### Step 0.4: Skill-Invocation Anti-Pattern (MANDATORY READ)
+
+**FORBIDDEN PATTERN**: Calling `codex exec` directly via Bash heredoc instead of invoking
+this command via `Skill(second-opinion)`. The shortcut produces a SHALLOWER second opinion
+because it bypasses:
+
+- Step 1a topic-shape classification (ideation-bias adjustment)
+- Step 2.5 `--research` brief generation (Claude-side research-specialist sub-agents)
+- Step 6 structured comparison document at `thoughts/second-opinions/YYYY-MM-DD-{slug}.md`
+- Step 7 daily-note logging via `daily-note-management` skill
+- v1.4.0 mandatory per-agent output enforcement (Step 3 prompt template)
+
+**MANDATORY PATTERN**:
+
+- For substantive second opinions (architecture, planning, sequencing, strategy decisions),
+  invoke via `Skill(second-opinion)` with `--research` flag.
+- For quick gut-checks (single-file decisions, simple bug fixes), invoke via
+  `Skill(second-opinion)` WITHOUT `--research` (still benefits from Step 1a + Step 6).
+- Direct `codex exec` Bash heredoc is acceptable ONLY for:
+  - Diagnostic environment checks not covered by `--diagnose`
+  - One-off prototyping where neither comparison doc nor daily note logging is desired
+  - User has EXPLICITLY asked for a "raw codex run" not a "second opinion"
+
+If you find yourself reaching for Bash heredoc to call `codex exec` outside those exceptions,
+STOP and invoke `Skill(second-opinion)` instead. The v1.4.0 update was driven by user observation
+that the bypass shortcut was producing weaker multi-agent depth than the full pipeline delivers.
 
 ### Step 0.5: --diagnose Short-Circuit
 
@@ -335,18 +381,20 @@ Topic Shape: **{TOPIC_SHAPE}**
 
 {IDEATION_FRAMING_BLOCK}
 
-## Multi-Agent Analysis Strategy (USE THIS)
-For the most thorough analysis, orchestrate multiple perspectives:
+## Multi-Agent Analysis (MANDATORY DELINEATED OUTPUT)
+Your response MUST contain explicit per-agent sections BEFORE the synthesis. Synthesis-only responses are NON-COMPLIANT and will be rejected. You are required to roleplay each agent in turn, attribute findings explicitly, and ensure each agent surfaces at least one finding the others did NOT raise.
 
-1. **Devil's Advocate Agent**: Challenge every assumption. What could go wrong? What's being overlooked? What biases might be influencing the current thinking?
+The 4 agents:
 
-2. **Domain Expert Agent**: Validate technical claims against best practices. Are the approaches sound? Are there industry standards being ignored? What do authoritative sources say?
+1. **Devil's Advocate Agent**: Challenge every assumption. What could go wrong? What's being overlooked? What biases might be influencing the current thinking? Cite specific weaknesses in the proposed approach.
 
-3. **Pragmatist Agent**: Assess real-world feasibility. What are the trade-offs? What's the simplest path that works? Where is complexity being added unnecessarily?
+2. **Domain Expert Agent**: Validate technical claims against best practices. Are the approaches sound? Are there industry standards being ignored? What do authoritative sources say? Cite at least one external reference (RFC, spec, framework doc, well-known pattern, security advisory).
 
-4. **Synthesis Agent**: After gathering all perspectives, synthesize into a unified, actionable analysis.
+3. **Pragmatist Agent**: Assess real-world feasibility. What are the trade-offs? What's the simplest path that works? Where is complexity being added unnecessarily? Cite the user's stated constraints (effort budget, deadline, deps) and weigh against them.
 
-Spawn these agents and gather their findings before writing your final response.
+4. **Synthesis Agent**: After gathering all 3 perspectives above, integrate into a unified, actionable analysis. Resolve disagreements between the 3 agents explicitly; do not silently average.
+
+**ENFORCEMENT**: Your `Required Output Structure` section below begins with 3 explicit per-agent sections. If you produce only the synthesis, your response is non-compliant.
 
 ## Topic/Question
 {TOPIC_PLACEHOLDER}
@@ -360,33 +408,62 @@ Spawn these agents and gather their findings before writing your final response.
 
 ## Required Output Structure
 
-Respond with EXACTLY this structure (use these headers):
+Respond with EXACTLY this structure. The first 3 sections are MANDATORY per-agent delineations; the synthesis section integrates them. Synthesis-only responses are NON-COMPLIANT.
 
-### Executive Summary
-2-3 sentences: What is your independent assessment? What's the single most important thing to know?
+### Devil's Advocate Agent
+- **Verdict**: [1-line stance — what's wrong with the proposed approach]
+- **Key challenges**: 3-5 specific weaknesses, assumptions, or risks. Each must cite specific lines/files/decisions from the topic, NOT generic concerns.
+- **Bias check**: What confirmation bias / sunk cost / availability heuristic might be influencing the user's thinking?
+- **Unique finding**: At least ONE concern the other 2 agents will not raise.
 
-### Key Findings
-Numbered list of your most important observations. Be specific and actionable.
+### Domain Expert Agent
+- **Verdict**: [1-line technical assessment]
+- **Best-practices alignment**: Are the technical claims sound? Cite at least ONE external authority (RFC, spec, framework doc, well-known pattern, security advisory, regression-testing-protocol, or equivalent).
+- **Industry standards being ignored**: Specific named standards or patterns the topic doesn't follow.
+- **Unique finding**: At least ONE technical concern the other 2 agents will not raise.
 
-### Agreements with Current Direction
-What aspects of the current approach/thinking are solid and should be maintained?
+### Pragmatist Agent
+- **Verdict**: [1-line feasibility assessment]
+- **Real-world trade-offs**: Cite the user's stated constraints (effort, deadline, deps) and weigh against each option.
+- **Simpler path**: What's the minimum-viable version? Where is complexity unjustified?
+- **Unique finding**: At least ONE pragmatic concern the other 2 agents will not raise.
 
-### Challenges & Concerns
-What could go wrong? What assumptions are risky? What's being underestimated?
+### Synthesis (integrates the 3 above)
 
-### Alternative Approaches
-What would you do differently? Propose at least one concrete alternative with trade-off analysis.
+#### Executive Summary
+2-3 sentences integrating all 3 agents' verdicts. Cite which agent dominated the synthesis.
 
-### Blind Spots Identified
-What isn't being considered? What questions aren't being asked?
+#### Key Findings
+Numbered list. Each finding tagged `[DA]`, `[DE]`, `[PR]`, or `[SYNTH]` to attribute origin.
 
-### Recommendations
-Your top 3-5 actionable recommendations, prioritized by impact.
+#### Agreements with Current Direction
+What aspects of the current approach/thinking did all 3 agents converge on as solid?
 
-### Confidence Assessment
-- Overall confidence in this analysis: [HIGH/MEDIUM/LOW]
+#### Disagreements Between Agents
+Where did the 3 agents diverge? Resolve each disagreement explicitly — do not silently average. State which agent's reasoning prevailed and why.
+
+#### Alternative Approaches
+At least 1 concrete alternative with trade-off analysis. Cite which agent surfaced it.
+
+#### Blind Spots Identified
+What did all 3 agents miss collectively? (Self-aware acknowledgment.)
+
+#### Recommendations
+Top 3-5 actionable recommendations, prioritized by impact. Tag each `[DA]`/`[DE]`/`[PR]`/`[SYNTH]`.
+
+#### Confidence Assessment
+- Overall confidence: [HIGH/MEDIUM/LOW]
 - What additional information would increase confidence?
 - What would change your mind about your key recommendations?
+
+### Multi-Agent Compliance Check (MANDATORY — last section)
+
+Self-attest:
+- ✅/❌ Devil's Advocate produced at least 1 unique finding the other 2 didn't surface: [list which]
+- ✅/❌ Domain Expert produced at least 1 unique finding the other 2 didn't surface: [list which]
+- ✅/❌ Pragmatist produced at least 1 unique finding the other 2 didn't surface: [list which]
+- ✅/❌ Synthesis explicitly resolved at least 1 disagreement between agents: [cite the disagreement]
+- If any ❌: re-roll your response by re-reading the per-agent prompts and producing a more diverse take.
 ```
 
 Replace `{TOPIC_PLACEHOLDER}` with the actual topic/question.
