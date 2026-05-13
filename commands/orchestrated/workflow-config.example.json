@@ -1,0 +1,54 @@
+{
+  "_comment": "Drop this file at <project-root>/.claude/workflow-config.json to customize the /research, /plan, /implement trio. All fields are optional — defaults are listed below as comments. Remove the _comment fields before use (or keep them — they're ignored).",
+
+  "project_root": ".",
+
+  "research_output_dir": "thoughts/research",
+  "plan_output_dir": "thoughts/plans",
+  "implementation_output_dir": "thoughts/implementation",
+
+  "test_commands": {
+    "_comment": "Project-specific test command strings. Used by /implement for three-tier verification gates and by /plan for §7a Test Inventory. Defaults shown.",
+    "typecheck": "npm run typecheck",
+    "lint": "npm run lint",
+    "build": "npm run build",
+    "test_unit": "npm run test:unit",
+    "test_e2e": "npm run test:e2e",
+    "test_e2e_full": "npm run test:e2e:full",
+    "test_full": "npm test"
+  },
+
+  "test_tree_paths": [
+    "tests/unit",
+    "tests/integration",
+    "tests/e2e",
+    "tests/performance"
+  ],
+
+  "skill_tree_paths": [
+    "_comment: Optional. Directories holding project-specific skill files that /research agents should read.",
+    ".claude/skills/software-development"
+  ],
+
+  "external_research_domains": {
+    "_comment": "Optional. URL prefixes /research Round 2 should prioritize. If absent, agents use generic web search.",
+    "official_docs": [],
+    "ecosystem_repos": [],
+    "community_forums": []
+  },
+
+  "codex": {
+    "_comment": "Optional. Configuration for the test-criteria-codex skill (Phase 1.5 of /plan). If absent or enabled=false, Phase 1.5 is skipped.",
+    "enabled": false,
+    "profile": "analyst",
+    "sandbox": "read-only",
+    "timeout_seconds": 300,
+    "min_version": "0.130.0"
+  },
+
+  "project_protected_files": [
+    "_comment: Optional. Files that are MUST-NOT-TOUCH for any plan generated against this project. Surfaced in plan §4 CONSTRAINTS and in test-criteria-codex Codex prompt."
+  ],
+
+  "project_testing_patterns_ref": null
+}
